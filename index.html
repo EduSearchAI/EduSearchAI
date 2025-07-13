@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSearchAI Chatbot</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+            min-height: 80px;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #result {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
+        .hidden {
+            display: none;
+        }
+        .loading, .error {
+            text-align: center;
+            padding: 1rem;
+            color: #555;
+        }
+        .result-item {
+            margin-bottom: 1.5rem;
+        }
+        .result-item h2 {
+            font-size: 1.2rem;
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .result-item p {
+            background: #f9f9f9;
+            padding: 1rem;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+        .result-item .timestamp {
+            font-style: italic;
+            color: #555;
+            text-align: right;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>EduSearchAI Chatbot</h1>
+        <form id="chat-form">
+            <textarea id="question" name="question" placeholder="Type your question here..." required></textarea>
+            <button type="submit">Ask</button>
+        </form>
+        <div id="result" class="hidden">
+            <div class="loading">Loading...</div>
+            <div class="error hidden"></div>
+            <div class="result-content hidden">
+                <div class="result-item">
+                    <h2>Answer</h2>
+                    <p id="answer"></p>
+                </div>
+                <div class="result-item">
+                    <h2>Matched Segment</h2>
+                    <p id="match"></p>
+                    <div class="timestamp" id="timestamp"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const form = document.getElementById('chat-form');
+        const questionInput = document.getElementById('question');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = resultDiv.querySelector('.loading');
+        const errorDiv = resultDiv.querySelector('.error');
+        const resultContentDiv = resultDiv.querySelector('.result-content');
+        const answerEl = document.getElementById('answer');
+        const matchEl = document.getElementById('match');
+        const timestampEl = document.getElementById('timestamp');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // Reset UI
+            resultDiv.classList.remove('hidden');
+            loadingDiv.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            resultContentDiv.classList.add('hidden');
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Populate and show results
+                answerEl.textContent = data.answer;
+                matchEl.textContent = data.match;
+                timestampEl.textContent = `From ${data.start}s to ${data.end}s`;
+                
+                loadingDiv.classList.add('hidden');
+                resultContentDiv.classList.remove('hidden');
+
+            } catch (error) {
+                // Show error message
+                errorDiv.textContent = `Failed to get an answer. ${error.message}. Please ensure the backend server is running.`;
+                loadingDiv.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html> 
