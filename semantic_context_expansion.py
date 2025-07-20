@@ -83,7 +83,8 @@ def sliding_window_search(query_embedding: np.ndarray, index: dict, top_n_seeds:
 
         candidate_windows.append({
             "segments": context_window,
-            "score": reranked_score
+            "score": reranked_score,
+            "lecture_name": lecture_name  # Carry the lecture name forward
         })
     
     if not candidate_windows:
@@ -104,6 +105,10 @@ def sliding_window_search(query_embedding: np.ndarray, index: dict, top_n_seeds:
         final_window = [strip_embedding(seg) for seg in window["segments"]]
         if final_window:
             final_window[0]['similarity'] = round(window["score"], 4)
-        final_answers.append(final_window)
+        
+        final_answers.append({
+            "segments": final_window,
+            "lecture_name": window["lecture_name"]
+        })
 
     return final_answers 

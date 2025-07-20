@@ -4,6 +4,7 @@ import sys
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from semantic_context_expansion import sliding_window_search
+from scripts.llm.llm import query_llm
 
 def search_engine(query: str, index: dict, model: SentenceTransformer, num_answers: int = 1):
     """
@@ -23,6 +24,55 @@ def search_engine(query: str, index: dict, model: SentenceTransformer, num_answe
     )
 
     return results
+
+def get_formatted_llm_question(query: str, results: list) -> dict:
+    """
+    Formats the user's query and search results into a question for the LLM.
+    """
+    context_texts = []
+    for i, result_item in enumerate(results):
+        segments = result_item['segments']
+        lecture_name = result_item['lecture_name']
+        
+        # Combine text and find the start time of the window
+        text = " ".join(seg["text"] for seg in segments)
+        start_time = segments[0].get('start') if segments else None
+        
+        if start_time is not None:
+            start_str = f"{int(start_time // 3600):02}:{int((start_time % 3600) // 60):02}:{int(start_time % 60):02}"
+        else:
+            start_str = "N/A"
+
+        context_texts.append(
+            f"Answer Context #{i+1}:\n"
+            f"- Source Lecture: {lecture_name}\n"
+            f"- Start Time: {start_str}\n"
+            f"- Text: {text}\n"
+        )
+    
+    all_contexts = "\n".join(context_texts)
+
+    question = f"""
+The user asked the following question: '{query}'
+
+Here are three possible contextual answers from lecture recordings:
+
+{all_contexts}
+    
+Please analyze these three answers and determine which one best answers the user's question.
+Your response MUST be in the following format:
+1. The full text of the best answer.
+2. On a new line, provide the start time from the lecture, prefixed with "Start Time: ".
+3. On a new line, provide the source lecture name, prefixed with "Source: ".
+
+Example:
+I recommend using cake flour because it has a lower protein content, which results in a lighter, more tender crumb.
+Start Time: 00:02:15
+Source: The Most AMAZING Vanilla Cake Recipe
+
+Based on the context provided, which is the best answer?
+"""
+    return {"question": question}
 
 def main():
     if len(sys.argv) != 2:
@@ -59,23 +109,16 @@ def main():
             if not results:
                 print("No relevant results found.")
             else:
-                for i, answer in enumerate(results):
-                    print(f"\n==== Contextual Answer #{i+1} ====")
-                    
-                    # Print combined text block
-                    combined = " ".join(seg["text"] for seg in answer)
-                    print(combined)
+                # Prepare the question for the LLM
+                llm_question = get_formatted_llm_question(query, results)
 
-                    print("\n---- Segment Details ----")
-                    for j, res in enumerate(answer):
-                        start_time = res.get('start')
-                        if start_time is not None:
-                            start_str = f"{int(start_time // 3600):02}:{int((start_time % 3600) // 60):02}:{int(start_time % 60):02}"
-                        else:
-                            start_str = "N/A"
+                # Send to LLM and get the response
+                print("\nAsking the LLM to find the best answer...")
+                llm_response = query_llm(llm_question)
 
-                        sim_str = f" | Score: {res.get('similarity'):.4f}" if j == 0 and res.get('similarity') else ""
-                        print(f"[{j}] {start_str}{sim_str} | {res['text']}")
+                # Print the final, formatted answer from the LLM
+                print("\n==== Final Answer from LLM ====")
+                print(llm_response)
 
         except KeyboardInterrupt:
             print("\nExiting...")
