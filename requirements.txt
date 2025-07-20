@@ -1,1 +1,5 @@
-sentence-transformers 
+sentence-transformers
+langchain
+langchain-google-genai
+python-dotenv 
+pytest>=7.4 
