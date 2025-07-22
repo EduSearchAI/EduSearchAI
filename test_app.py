@@ -8,25 +8,21 @@ import pytest
 # Adjust path so we can import app
 sys.path.append(os.path.dirname(__file__))
 
-from app import search_engine  # noqa: E402
-from sentence_transformers import SentenceTransformer  # noqa: E402
+from app import search_engine, load_model_and_index  # noqa: E402
 
 
-@pytest.fixture(scope="session")
-def model():
-    """Load the sentence-transformer model once for all tests."""
-    return SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
-
-
-@pytest.fixture(scope="session")
-def index():
-    """Load the pre-built index from the whisper_recording folder."""
+@pytest.fixture(scope="session", autouse=True)
+def setup_model_and_index():
+    """
+    Loads the model and index once for the entire test session.
+    The 'autouse=True' flag ensures this fixture is automatically run.
+    """
     index_path = os.path.join(os.path.dirname(__file__), "whisper_recording", "index.pkl")
     if not os.path.exists(index_path):
-        pytest.skip("index.pkl not found – make sure it exists before running the test")
-    with open(index_path, "rb") as f:
-        return pickle.load(f)
+        pytest.skip(f"index.pkl not found at '{index_path}' – generate it before running tests.")
 
+    # This will load the model and index into the global variables used by the app
+    load_model_and_index(index_path)
 
 # (query, list_of_expected_phrases)
 CASES = [
@@ -88,9 +84,9 @@ CASES = [
 ]
 
 
-def test_semantic_answers_formatted(model, index):
+def test_semantic_answers_formatted():
     """
-    Runs a series of semantic search tests and prints results in a custom, readable format.
+    Runs a series of semantic search tests using the globally loaded model and index.
     The test fails if any of the scenarios do not return the expected context.
     """
     print("\n--- Running Semantic Search Scenarios ---")
@@ -102,7 +98,7 @@ def test_semantic_answers_formatted(model, index):
         sys.stdout = open(os.devnull, 'w')
         try:
             # For testing, we check if any of the top 3 answers are correct
-            results = search_engine(query, index, model, num_answers=3)
+            results = search_engine(query, num_answers=3)
         finally:
             sys.stdout.close()
             sys.stdout = original_stdout  # Restore stdout
@@ -119,11 +115,11 @@ def test_semantic_answers_formatted(model, index):
         all_returned_text = []
         successful_answer_text = ""
 
-        for answer in results:
-            if not answer:
+        for result_item in results:
+            if not result_item or 'segments' not in result_item:
                 continue
             
-            combined_text = " ".join(seg["text"] for seg in answer)
+            combined_text = " ".join(seg["text"] for seg in result_item['segments'])
             all_returned_text.append(combined_text)
 
             if any(phrase.lower() in combined_text.lower() for phrase in expected_phrases):

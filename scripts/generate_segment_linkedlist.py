@@ -51,7 +51,11 @@ def create_index(input_dir, output_path):
             print(f"⚠️ All segments in {filename} are empty, skipping.")
             continue
 
-        embeddings = model.encode(texts, show_progress_bar=True)
+        embeddings = model.encode(texts, show_progress_bar=True).astype(np.float32)
+
+        # Normalize the segment embeddings before storing them for efficient cosine similarity
+        embeddings_norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        embeddings = np.divide(embeddings, embeddings_norm, out=np.zeros_like(embeddings), where=embeddings_norm != 0)
 
         # 4. Structure the data for the index
         segments_for_index = []
@@ -64,8 +68,13 @@ def create_index(input_dir, output_path):
                 "embedding": embeddings[i]
             })
 
-        # 5. Calculate the average embedding for the entire lecture
+        # 5. Calculate the average embedding for the entire lecture (from pre-normalized segment embeddings)
         average_embedding = np.mean(embeddings, axis=0)
+
+        # Also normalize the average embedding for efficient lecture-level search
+        avg_norm = np.linalg.norm(average_embedding)
+        if avg_norm > 0:
+            average_embedding /= avg_norm
 
         # 6. Add the processed data to the main index
         index[lecture_name] = {

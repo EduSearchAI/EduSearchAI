@@ -159,8 +159,8 @@
 
           // Populate and show results
           answerEl.textContent = data.answer;
-          matchEl.textContent = data.match;
-          timestampEl.textContent = `Start Time: ${data.start}`;
+          matchEl.textContent = `Source: ${data.source}`;
+          timestampEl.textContent = `Start Time: ${data.start_time}`;
 
           loadingDiv.classList.add("hidden");
           resultContentDiv.classList.remove("hidden");
