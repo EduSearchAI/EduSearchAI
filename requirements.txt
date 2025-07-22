@@ -3,3 +3,5 @@ langchain
 langchain-google-genai
 python-dotenv 
 pytest>=7.4 
+numpy
+Flask 
