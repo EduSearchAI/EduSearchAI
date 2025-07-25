@@ -1,10 +1,24 @@
-import numpy as np
 from itertools import product
+from typing import List, Dict, Any
+
+import numpy as np
+
 
 def search(query_vector: np.ndarray, vectors: np.ndarray) -> np.ndarray:
-    """
-    Calculates cosine similarity. Assumes vectors are already normalized.
-    The query vector is normalized within this function.
+    """Finds the most similar vectors to a query vector using cosine similarity.
+
+    This function calculates the cosine similarity between a given query vector and
+    a collection of other vectors. It assumes that the input vectors (the search space)
+    are already L2-normalized. The query vector is normalized within the function.
+
+    Args:
+        query_vector: The vector for which to find similar vectors.
+        vectors: A 2D array of vectors to search through. Each row is expected
+                 to be an L2-normalized vector.
+
+    Returns:
+        An array of cosine similarity scores between the query vector and each
+        of the vectors in the search space.
     """
     # Normalize the query vector
     query_norm = np.linalg.norm(query_vector)
@@ -18,11 +32,35 @@ def search(query_vector: np.ndarray, vectors: np.ndarray) -> np.ndarray:
     similarity = np.dot(vectors, query_vector)
     return similarity
 
-def sliding_window_search(query_embedding: np.ndarray, index: dict, top_n_lectures: int = 3, top_n_seeds: int = 10, context_window_size: int = 5, num_answers: int = 1):
-    """
-    Finds the best context windows using a two-stage search:
-    1. Lecture Search: Find the most relevant lectures using their average embeddings.
-    2. Seed & Expand: Within those lectures, find top seed segments and expand them.
+
+def sliding_window_search(
+    query_embedding: np.ndarray, 
+    index: Dict[str, Any], 
+    top_n_lectures: int = 3, 
+    top_n_seeds: int = 10, 
+    context_window_size: int = 5, 
+    num_answers: int = 1
+) -> List[Dict[str, Any]]:
+    """Finds the best context windows using a two-stage search process.
+
+    This function implements a search strategy by first identifying the most
+    relevant lectures and then performing a detailed "seed and expand" search
+    within those lectures to find the best contextual answer windows.
+
+    Args:
+        query_embedding: The embedding of the user's query.
+        index: The search index, a dictionary containing lecture data and
+               pre-computed embeddings.
+        top_n_lectures: The number of top lectures to consider for the detailed search.
+        top_n_seeds: The number of top "seed" segments to find within the
+                     selected lectures.
+        context_window_size: The number of segments to include in a context window.
+        num_answers: The final number of answer windows to return.
+
+    Returns:
+        A list of dictionaries, where each dictionary represents a final answer
+        containing the relevant segments and the lecture name. Returns an
+        empty list if no suitable results are found.
     """
     # Stage 1: Lecture Search
     lecture_names = list(index.keys())
@@ -76,10 +114,10 @@ def sliding_window_search(query_embedding: np.ndarray, index: dict, top_n_lectur
         if not context_window:
             continue
 
-        # Since segment embeddings are pre-normalized, we can average their similarities directly.
+        # Get the indices in `all_segments` corresponding to the current window
         window_segment_indices = [
-            all_segments.index(s) for s in all_segments if s['lecture'] == lecture_name and 
-            start_index <= s['index_in_lecture'] < end_index
+            i for i, s in enumerate(all_segments) 
+            if s['lecture'] == lecture_name and start_index <= s['index_in_lecture'] < end_index
         ]
         
         # Ensure we found the corresponding indices in all_segments
@@ -87,7 +125,6 @@ def sliding_window_search(query_embedding: np.ndarray, index: dict, top_n_lectur
              continue
         
         avg_similarity = np.mean(similarities[window_segment_indices])
-        
         seed_similarity = similarities[seed_idx]
 
         reranked_score = (0.95 * seed_similarity) + (0.05 * avg_similarity)
@@ -104,7 +141,8 @@ def sliding_window_search(query_embedding: np.ndarray, index: dict, top_n_lectur
     candidate_windows.sort(key=lambda x: x['score'], reverse=True)
     top_windows = candidate_windows[:num_answers]
     
-    def strip_embedding(segment: dict) -> dict:
+    def strip_embedding(segment: Dict[str, Any]) -> Dict[str, Any]:
+        """Removes the 'embedding' key from a segment dictionary for cleaner output."""
         seg_copy = segment.copy()
         seg_copy.pop("embedding", None)
         return seg_copy

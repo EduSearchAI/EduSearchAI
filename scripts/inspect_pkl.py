@@ -1,27 +1,42 @@
 import pickle
 import sys
 import pprint
+from typing import Any
+
 import numpy as np
 
 # Custom adapter for pprint to handle NumPy arrays gracefully
-def numpy_array_representer(printer, obj):
+def numpy_array_representer(printer: pprint.PrettyPrinter, obj: np.ndarray) -> None:
+    """A custom representer for NumPy arrays to be used with pprint.
+
+    This function formats NumPy arrays for pretty-printing by truncating them
+    to ensure the output remains readable.
+
+    Args:
+        printer: The PrettyPrinter instance calling the representer.
+        obj: The NumPy array object to represent.
+    """
     # Truncate the array representation for cleaner output
-    # You can adjust max_line_width or other options as needed
     with np.printoptions(threshold=10, edgeitems=2):
         printer.text(repr(obj))
 
-# Register the custom representer for ndarray class
-# Use a more compatible way to register the representer
+# Register the custom representer for the ndarray class.
+# This makes pprint use our custom function for any NumPy arrays it encounters.
 pprint.PrettyPrinter._dispatch[np.ndarray.__class__] = numpy_array_representer
 
-def inspect_pickle_file(file_path):
-    """
-    Loads and prints the contents of a pickle file in a human-readable format.
-    Handles NumPy arrays for cleaner printing.
+def inspect_pickle_file(file_path: str) -> None:
+    """Loads and prints the contents of a pickle file in a human-readable format.
+
+    This function opens a specified .pkl file, loads its contents, and then
+    pretty-prints the data to the console. It uses a custom representer to
+    handle NumPy arrays gracefully, ensuring they don't flood the output.
+
+    Args:
+        file_path: The path to the .pkl file to be inspected.
     """
     try:
         with open(file_path, 'rb') as f:
-            data = pickle.load(f)
+            data: Any = pickle.load(f)
         
         print(f"✅ Successfully loaded data from: {file_path}\n")
         print("--- Inspector Tool: Pickle File Content ---")
@@ -35,13 +50,19 @@ def inspect_pickle_file(file_path):
 
     except FileNotFoundError:
         print(f"❌ Error: The file '{file_path}' was not found.")
-    except Exception as e:
+    except (pickle.UnpicklingError, Exception) as e:
         print(f"❌ An unexpected error occurred: {e}")
 
-if __name__ == "__main__":
+
+def main() -> None:
+    """Main function to run the pickle file inspector from the command line."""
     if len(sys.argv) != 2:
         print("Usage: python inspect_pkl.py <path_to_your_index.pkl_file>")
         sys.exit(1)
 
     pickle_file = sys.argv[1].strip('"')
-    inspect_pickle_file(pickle_file) 
+    inspect_pickle_file(pickle_file)
+
+
+if __name__ == "__main__":
+    main() 

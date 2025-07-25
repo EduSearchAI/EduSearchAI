@@ -2,18 +2,24 @@ import os
 import json
 import pickle
 import sys
+from typing import Dict, Any, List
+
 import numpy as np
 from sentence_transformers import SentenceTransformer
 
-def create_index(input_dir, output_path):
-    """
-    Processes a directory of JSON transcripts, generates embeddings for each segment,
-    calculates an average embedding for each transcript, and saves everything
-    into a single index file using pickle.
+
+def create_index(input_dir: str, output_path: str) -> None:
+    """Processes JSON transcripts, generates embeddings, and saves an index file.
+
+    This function iterates through a directory of JSON transcript files, extracts
+    text segments, and generates sentence embeddings for each segment using a
+    SentenceTransformer model. It also calculates an average embedding for each
+    transcript. The resulting data, including normalized embeddings, is saved
+    to a single index file using pickle.
 
     Args:
-        input_dir (str): The path to the directory containing the JSON transcript files.
-        output_path (str): The path where the final index .pkl file will be saved.
+        input_dir: The path to the directory containing JSON transcript files.
+        output_path: The path where the final index .pkl file will be saved.
     """
     # 1. Initialize the model and the main index dictionary
     model = SentenceTransformer('all-MiniLM-L6-v2', device='cuda' if 'cuda' in sys.modules else 'cpu')
@@ -22,7 +28,12 @@ def create_index(input_dir, output_path):
     print(f"Starting to process files in: {input_dir}")
 
     # 2. Iterate over all .json files in the input directory
-    json_files = [f for f in os.listdir(input_dir) if f.endswith(".json")]
+    try:
+        json_files = [f for f in os.listdir(input_dir) if f.endswith(".json")]
+    except FileNotFoundError:
+        print(f"Error: Input directory not found at '{input_dir}'")
+        return
+
     if not json_files:
         print("No JSON files found in the specified directory.")
         return
@@ -51,7 +62,7 @@ def create_index(input_dir, output_path):
             print(f"⚠️ All segments in {filename} are empty, skipping.")
             continue
 
-        embeddings = model.encode(texts, show_progress_bar=True).astype(np.float32)
+        embeddings = model.encode(texts, show_progress_bar=True, convert_to_numpy=True).astype(np.float32)
 
         # Normalize the segment embeddings before storing them for efficient cosine similarity
         embeddings_norm = np.linalg.norm(embeddings, axis=1, keepdims=True)
@@ -91,7 +102,8 @@ def create_index(input_dir, output_path):
     except IOError as e:
         print(f"❌ Failed to save index file: {e}")
 
-if __name__ == "__main__":
+
+def main() -> None:
     if len(sys.argv) != 3:
         print("Usage: python generate_segment_linkedlist.py <input_directory_with_transcripts> <output_index_file.pkl>")
         sys.exit(1)
@@ -114,4 +126,8 @@ if __name__ == "__main__":
         os.makedirs(output_dir)
         print(f"Created output directory: {output_dir}")
 
-    create_index(input_folder, output_file) 
+    create_index(input_folder, output_file)
+
+
+if __name__ == "__main__":
+    main() 
