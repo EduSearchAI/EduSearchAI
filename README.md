@@ -1,2 +1,2 @@
 # EduSearchAI
-[EduSearchAI_Pitch_Deck.pptx](https://github.com/user-attachments/files/21163781/EduSearchAI_Pitch_Deck.pptx)
+[EduSearchAI_Presentation.pptx](https://github.com/user-attachments/files/21416518/EduSearchAI_Presentation.pptx)
